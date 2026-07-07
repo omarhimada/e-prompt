@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="eprompt/eprompt.vcxproj" Id="4ad7a678-52ac-4bc9-9561-4ed3a8201c9b" />
+</Solution>
