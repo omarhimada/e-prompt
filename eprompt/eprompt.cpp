@@ -7,13 +7,8 @@
 #include <string>
 #include <vector>
 
-#include <cctype>
 #include <cmath>
-#include <iomanip>
-#include <iostream>
-#include <regex>
 #include <sstream>
-#include <unordered_set>      
 
 #define MAX_LOADSTRING 100
 #define ID_INPUT_EDIT 1001
