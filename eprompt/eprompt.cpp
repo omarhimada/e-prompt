@@ -4,11 +4,11 @@
 #include "framework.h"
 #include "eprompt.h"
 #include <algorithm>
+#include <cmath>
+#include <cwctype>
+#include <sstream>
 #include <string>
 #include <vector>
-
-#include <cmath>
-#include <sstream>
 
 #define MAX_LOADSTRING 100
 #define ID_INPUT_EDIT 1001
@@ -18,14 +18,14 @@
 #define BUTTON_HEIGHT 40
 
 // Global Variables:
-HINSTANCE hInst;                                // current instance
-WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
-WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
-HWND hInputEdit;                                // Input text area
-HWND hSortPromptButton;                         // Reverse button
-HWND hCopyOutputButton;							// Copy output button
-HWND hOutputDisplay;                            // Output text area
-WNDPROC g_DefaultEditProc;						// Used for 'CTRL+A' selection
+HINSTANCE hInst;                                // Current instance
+WCHAR szTitle[MAX_LOADSTRING];                  // Title bar text
+WCHAR szWindowClass[MAX_LOADSTRING];            // Main window class name
+HWND hInputEdit;                                // Input
+HWND hSortPromptButton;                         // Sort button
+HWND hCopyOutputButton;							// Copy button
+HWND hOutputDisplay;                            // Output
+WNDPROC g_DefaultEditProc;						// 'CTRL+A' selection
 
 // Forward declarations of functions included in this code module:
 ATOM                RegisterClass(HINSTANCE hInstance);
@@ -41,8 +41,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_ int       nCmdShow) {
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
-
-	// TODO: Place code here.
 
 	// Initialize global strings
 	LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
