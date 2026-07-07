@@ -1,0 +1,11 @@
+/* Visual Studio Settings File */
+{
+  "languages.cpp.codeStyle.formatting.newLine.newlineNamespaceBrace": "same_line",
+  "languages.cpp.codeStyle.formatting.newLine.newlineTypeBrace": "same_line",
+  "languages.cpp.codeStyle.formatting.newLine.newlineFunctionBrace": "same_line",
+  "languages.cpp.codeStyle.formatting.newLine.newlineControlBlockBrace": "same_line",
+  "languages.cpp.codeStyle.formatting.newLine.newlineLambdaBrace": "same_line",
+  "languages.cpp.codeStyle.formatting.newLine.newlineScopeBrace": true,
+  "languages.cpp.codeStyle.formatting.newLine.closeBraceSameLineEmptyType": true,
+  "languages.cpp.codeStyle.formatting.newLine.closeBraceSameLineEmptyFunction": true
+}
