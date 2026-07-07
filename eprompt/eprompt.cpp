@@ -1,5 +1,5 @@
 // eprompt.cpp : Defines the entry point for the application.
-//
+// Sort Stable Diffusion prompts by weight & lexicographically, and remove duplicates
 
 #include "framework.h"
 #include "eprompt.h"
@@ -8,17 +8,18 @@
 #include <vector>
 
 #include <cctype>
+#include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <regex>
 #include <sstream>
 #include <unordered_set>      
 
-
 #define MAX_LOADSTRING 100
 #define ID_INPUT_EDIT 1001
-#define ID_REVERSE_BUTTON 1002
-#define ID_OUTPUT_EDIT 1003
+#define ID_SORT_PROMPT_BUTTON 1002
+#define ID_COPY_OUTPUT_BUTTON 1003
+#define ID_OUTPUT_EDIT 1004
 #define BUTTON_HEIGHT 40
 
 // Global Variables:
@@ -26,16 +27,18 @@ HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 HWND hInputEdit;                                // Input text area
-HWND hReverseButton;                            // Reverse button
-HWND hOutputEdit;                               // Output text area
+HWND hSortPromptButton;                         // Reverse button
+HWND hCopyOutputButton;							// Copy output button
+HWND hOutputDisplay;                            // Output text area
+WNDPROC g_DefaultEditProc;						// Used for 'CTRL+A' selection
 
 // Forward declarations of functions included in this code module:
-ATOM                MyRegisterClass(HINSTANCE hInstance);
+ATOM                RegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void                ResizeControls(HWND hWnd);
-void                ReverseString();
+void                SortPrompt();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -49,7 +52,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	// Initialize global strings
 	LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
 	LoadStringW(hInstance, IDC_EPROMPT, szWindowClass, MAX_LOADSTRING);
-	MyRegisterClass(hInstance);
+	RegisterClass(hInstance);
 
 	// Perform application initialization:
 	if (!InitInstance(hInstance, nCmdShow)) {
@@ -72,11 +75,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 }
 
 //
-//  FUNCTION: MyRegisterClass()
+//  FUNCTION: RegisterClass()
 //
 //  PURPOSE: Registers the window class.
 //
-ATOM MyRegisterClass(HINSTANCE hInstance) {
+ATOM RegisterClass(HINSTANCE hInstance) {
 	WNDCLASSEXW wcex;
 
 	wcex.cbSize = sizeof(WNDCLASSEX);
@@ -94,6 +97,17 @@ ATOM MyRegisterClass(HINSTANCE hInstance) {
 	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
 	return RegisterClassExW(&wcex);
+}
+
+LRESULT CALLBACK InputEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	if (msg == WM_KEYDOWN) {
+		if (wParam == 'A' && (GetKeyState(VK_CONTROL) & 0x8000)) {
+			SendMessage(hwnd, EM_SETSEL, 0, -1);
+			return 0;
+		}
+	}
+
+	return CallWindowProc(g_DefaultEditProc, hwnd, msg, wParam, lParam);
 }
 
 //
@@ -128,19 +142,30 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 		hInstance,
 		nullptr);
 
-	// Create reverse button
-	hReverseButton = CreateWindowW(
+	// Create sort prompt button
+	hSortPromptButton = CreateWindowW(
 		L"BUTTON",
 		L"Sort Prompt",
 		WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
 		0, 0, 0, BUTTON_HEIGHT,
 		hWnd,
-		(HMENU)ID_REVERSE_BUTTON,
+		(HMENU)ID_SORT_PROMPT_BUTTON,
+		hInstance,
+		nullptr);
+
+	// Create copy output button
+	hCopyOutputButton = CreateWindowW(
+		L"BUTTON",
+		L"Copy Output",
+		WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+		0, 0, 0, BUTTON_HEIGHT,
+		hWnd,
+		(HMENU)ID_COPY_OUTPUT_BUTTON,
 		hInstance,
 		nullptr);
 
 	// Create output text area (multiline edit control, read-only)
-	hOutputEdit = CreateWindowExW(
+	hOutputDisplay = CreateWindowExW(
 		WS_EX_CLIENTEDGE,
 		L"EDIT",
 		L"",
@@ -150,6 +175,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 		(HMENU)ID_OUTPUT_EDIT,
 		hInstance,
 		nullptr);
+
+	g_DefaultEditProc = (WNDPROC)SetWindowLongPtr(
+		hInputEdit,
+		GWLP_WNDPROC,
+		(LONG_PTR)InputEditProc);
 
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
@@ -173,22 +203,28 @@ void ResizeControls(HWND hWnd) {
 	int remainingHeight = clientHeight - BUTTON_HEIGHT;
 	int halfHeight = remainingHeight / 2;
 
+	// Each button takes up half the width of the window
+	int buttonWidth = clientWidth / 2;
+
 	// Position input edit (top half)
 	SetWindowPos(hInputEdit, nullptr, 0, 0, clientWidth, halfHeight, SWP_NOZORDER);
 
 	// Position button (middle)
-	SetWindowPos(hReverseButton, nullptr, 0, halfHeight, clientWidth, BUTTON_HEIGHT, SWP_NOZORDER);
+	SetWindowPos(hSortPromptButton, nullptr, 0, halfHeight, buttonWidth, BUTTON_HEIGHT, SWP_NOZORDER);
+
+	// Position second button (middle)
+	SetWindowPos(hCopyOutputButton, nullptr, buttonWidth, halfHeight, clientWidth - buttonWidth, BUTTON_HEIGHT, SWP_NOZORDER);
 
 	// Position output edit (bottom half)
-	SetWindowPos(hOutputEdit, nullptr, 0, halfHeight + BUTTON_HEIGHT, clientWidth, halfHeight, SWP_NOZORDER);
+	SetWindowPos(hOutputDisplay, nullptr, 0, halfHeight + BUTTON_HEIGHT, clientWidth, halfHeight, SWP_NOZORDER);
 }
 
 //
-//  FUNCTION: ReverseString()
+//  FUNCTION: SortPrompt()
 //
 //  PURPOSE: Reverse the string from input and display in output
 //
-void ReverseString() {
+void SortPrompt() {
 	// Get length of input text
 	int length = GetWindowTextLengthW(hInputEdit);
 
@@ -243,14 +279,26 @@ void ReverseString() {
 				}
 			}
 
-			// (((text)))
-			size_t open = 0, close = 0;
-			while (open < token.size() && token[open] == L'(') ++open;
-			while (close < token.size() && token[token.size() - 1 - close] == L')') ++close;
+			// (((text))) or [[[text]]]
+			size_t parenOpen = 0, parenClose = 0;
+			while (parenOpen < token.size() && token[parenOpen] == L'(') ++parenOpen;
+			while (parenClose < token.size() && token[token.size() - 1 - parenClose] == L')') ++parenClose;
 
-			if (open > 0 && open == close) {
-				p.text = trim(token.substr(open, token.size() - open - close));
-				p.weight = 1.0 + open * 0.1;
+			size_t squareOpen = 0, squareClose = 0;
+			while (squareOpen < token.size() && token[squareOpen] == L'[') ++squareOpen;
+			while (squareClose < token.size() && token[token.size() - 1 - squareClose] == L']') ++squareClose;
+
+			if (parenOpen > 0 && parenOpen == parenClose) {
+				p.text = trim(token.substr(parenOpen, token.size() - parenOpen - parenClose));
+
+				// 1.1^n
+				p.weight = std::pow(1.1, static_cast<double>(parenOpen));
+			}
+			else if (squareOpen > 0 && squareOpen == squareClose) {
+				p.text = trim(token.substr(squareOpen, token.size() - squareOpen - squareClose));
+
+				// 0.9^n
+				p.weight = std::pow(0.9, static_cast<double>(squareOpen));
 			}
 
 			prompts.push_back(std::move(p));
@@ -295,12 +343,42 @@ void ReverseString() {
 		}
 
 
-		SetWindowTextW(hOutputEdit, inputText.c_str());
+		SetWindowTextW(hOutputDisplay, inputText.c_str());
 	}
 	else {
 		// Clear output if input is empty
-		SetWindowTextW(hOutputEdit, L"");
+		SetWindowTextW(hOutputDisplay, L"");
 	}
+}
+
+void CopyOutput() {
+	int length = GetWindowTextLengthW(hOutputDisplay);
+	if(length <= 0)
+		return;
+
+	std::wstring text(length + 1, L'\0');
+	GetWindowTextW(hOutputDisplay, text.data(), length + 1);
+
+	if (!OpenClipboard(nullptr))
+		return;
+
+	EmptyClipboard();
+
+	SIZE_T bytes = (length + 1) * sizeof(wchar_t);
+
+	HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, bytes);
+	if (hMem) {
+		void* pMem = GlobalLock(hMem);
+		if (pMem != 0) {
+			memcpy(pMem, text.c_str(), bytes);
+			GlobalUnlock(hMem);
+
+			SetClipboardData(CF_UNICODETEXT, hMem);
+			// Do NOT GlobalFree(hMem); the clipboard owns it now.
+		}
+	}
+
+	CloseClipboard();
 }
 
 //
@@ -328,8 +406,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		int wmId = LOWORD(wParam);
 		// Parse the menu selections:
 		switch (wmId) {
-		case ID_REVERSE_BUTTON:
-			ReverseString();
+		case ID_COPY_OUTPUT_BUTTON:
+			CopyOutput();
+			break;
+		case ID_SORT_PROMPT_BUTTON:
+			SortPrompt();
 			break;
 		case IDM_ABOUT:
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
