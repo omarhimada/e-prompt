@@ -2,7 +2,6 @@
 // Sort Stable Diffusion prompts by weight & lexicographically, and remove duplicates
 
 #include "framework.h"
-#include "eprompt.h"
 #include <algorithm>
 #include <cmath>
 #include <cwctype>
@@ -10,30 +9,8 @@
 #include <string>
 #include <vector>
 
-#define MAX_LOADSTRING 100
-#define ID_INPUT_EDIT 1001
-#define ID_SORT_PROMPT_BUTTON 1002
-#define ID_COPY_OUTPUT_BUTTON 1003
-#define ID_OUTPUT_EDIT 1004
-#define BUTTON_HEIGHT 40
-
-// Global Variables:
-HINSTANCE hInst;                                // Current instance
-WCHAR szTitle[MAX_LOADSTRING];                  // Title bar text
-WCHAR szWindowClass[MAX_LOADSTRING];            // Main window class name
-HWND hInputEdit;                                // Input
-HWND hSortPromptButton;                         // Sort button
-HWND hCopyOutputButton;							// Copy button
-HWND hOutputDisplay;                            // Output
-WNDPROC g_DefaultEditProc;						// 'CTRL+A' selection
-
-// Forward declarations of functions included in this code module:
-ATOM                RegisterClass(HINSTANCE hInstance);
-BOOL                InitInstance(HINSTANCE, int);
-LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
-void                ResizeControls(HWND hWnd);
-void                SortPrompt();
+#include "flatbutton.h"
+#include "main.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -115,6 +92,8 @@ LRESULT CALLBACK InputEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 	hInst = hInstance; // Store instance handle in our global variable
+	
+	RegisterFlatButton(hInstance);
 
 	HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, 0, 800, 600, nullptr, nullptr, hInstance, nullptr);
@@ -125,7 +104,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 
 	// Create input text area (multiline edit control)
 	hInputEdit = CreateWindowExW(
-		WS_EX_CLIENTEDGE,
+		0,
 		L"EDIT",
 		L"",
 		WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN,
@@ -136,30 +115,38 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 		nullptr);
 
 	// Create sort prompt button
-	hSortPromptButton = CreateWindowW(
-		L"BUTTON",
-		L"Sort Prompt",
-		WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-		0, 0, 0, BUTTON_HEIGHT,
+	hSortPromptButton = CreateFlatButton(
 		hWnd,
-		(HMENU)ID_SORT_PROMPT_BUTTON,
-		hInstance,
-		nullptr);
+		ID_SORT_PROMPT_BUTTON,
+		L"Sort Prompt",
+		0,
+		0,
+		0,
+		BUTTON_HEIGHT);
+
+	FlatButton_SetBackground(hSortPromptButton, RGB(8, 8, 8));
+	FlatButton_SetHoverBackground(hSortPromptButton, RGB(64, 64, 64));
+	FlatButton_SetPressedBackground(hSortPromptButton, RGB(81, 81, 81));
+	FlatButton_SetTextColor(hSortPromptButton,RGB(234, 234, 234));
 
 	// Create copy output button
-	hCopyOutputButton = CreateWindowW(
-		L"BUTTON",
-		L"Copy Output",
-		WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-		0, 0, 0, BUTTON_HEIGHT,
+	hCopyOutputButton = CreateFlatButton(
 		hWnd,
-		(HMENU)ID_COPY_OUTPUT_BUTTON,
-		hInstance,
-		nullptr);
+		ID_COPY_OUTPUT_BUTTON,
+		L"Copy Output",
+		0,
+		0,
+		0,
+		BUTTON_HEIGHT); 
+	
+	FlatButton_SetBackground(hCopyOutputButton, RGB(8, 8, 8));
+	FlatButton_SetHoverBackground(hCopyOutputButton, RGB(64, 64, 64));
+	FlatButton_SetPressedBackground(hCopyOutputButton, RGB(81, 81, 81));
+	FlatButton_SetTextColor(hCopyOutputButton, RGB(234, 234, 234));
 
 	// Create output text area (multiline edit control, read-only)
 	hOutputDisplay = CreateWindowExW(
-		WS_EX_CLIENTEDGE,
+		0,
 		L"EDIT",
 		L"",
 		WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
@@ -227,12 +214,6 @@ void SortPrompt() {
 		GetWindowTextW(hInputEdit, inputText.data(), length + 1);
 		inputText.resize(length); // Remove extra null terminator
 
-		struct Prompt {
-			std::wstring original;
-			std::wstring text;
-			double weight;
-		};
-
 		auto trim = [](std::wstring s) {
 			const wchar_t* ws = L" \t\r\n";
 			size_t first = s.find_first_not_of(ws);
@@ -260,6 +241,7 @@ void SortPrompt() {
 
 			// (text:1.2)
 			if (token.size() >= 5 && token.front() == L'(' && token.back() == L')') {
+				// Minimum size of 5 characters for (x:y)
 				size_t colon = token.rfind(L':');
 				if (colon != std::wstring::npos) {
 					try {
@@ -416,6 +398,47 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		}
 	}
 	break;
+	case WM_DRAWITEM:
+	{
+		LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT)lParam;
+
+		if (dis->CtlID == ID_SORT_PROMPT_BUTTON ||
+			dis->CtlID == ID_COPY_OUTPUT_BUTTON) {
+			HDC dc = dis->hDC;
+			RECT rc = dis->rcItem;
+
+			// background
+			FillRect(dc, &rc, CreateSolidBrush(RGB(0, 0, 0)));
+
+			// border
+			//FrameRect(dc, &rc, GetSysColorBrush(GRAY_BRUSH));
+
+			// text
+			SetBkMode(dc, TRANSPARENT);
+
+			const wchar_t* buttonText = L"";
+
+			switch (dis->CtlID) {
+				case ID_SORT_PROMPT_BUTTON:
+					buttonText = L"Sort Prompt";
+				break;
+				case ID_COPY_OUTPUT_BUTTON:
+					buttonText = L"Copy Output";
+				break;
+			}
+
+			DrawTextW(
+				dc,
+				buttonText,
+				-1,
+				&rc,
+				DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+			return TRUE;
+		}
+
+		break;
+	}
 	case WM_PAINT:
 	{
 		PAINTSTRUCT ps;

@@ -139,13 +139,15 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="eprompt.h" />
+    <ClInclude Include="flatbutton.h" />
+    <ClInclude Include="main.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="eprompt.cpp" />
+    <ClCompile Include="flatbutton.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="eprompt.rc" />
