@@ -122,7 +122,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 	if (!hWnd) {
 		return FALSE;
 	}
-	HFONT hFont = CreateFontFromFile(L"E:\\Fonts\\JBM.ttf", 12);
+
+	hFont = CreateFontFromFile(L"E:\\Fonts\\JBM.ttf", 12);
+	g_hTextAreaBgBrush = CreateSolidBrush(RGB(192, 192, 192));
 
 	// Create input text area (multiline edit control)
 	hInputEdit = CreateWindowExW(
@@ -228,11 +230,11 @@ void ResizeControls(HWND hWnd) {
 }
 
 //
-//  FUNCTION: SortPrompt()
+//  FUNCTION: SortPrompts()
 //
-//  PURPOSE: Reverse the string from input and display in output
+//  PURPOSE: Sort the prompts by weight, lexicographically, and remove duplicates.
 //
-void SortPrompt() {
+void SortPrompts() {
 	// Get length of input text
 	int length = GetWindowTextLengthW(hInputEdit);
 
@@ -413,7 +415,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			CopyOutput();
 			break;
 		case ID_SORT_PROMPT_BUTTON:
-			SortPrompt();
+			SortPrompts();
 			break;
 		case IDM_ABOUT:
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
@@ -467,6 +469,32 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 		break;
 	}
+	case WM_CTLCOLOREDIT:
+	{
+		HDC hdc = (HDC)wParam;
+		HWND hEdit = (HWND)lParam;
+
+		if (hEdit == hInputEdit || hEdit == hOutputDisplay) {
+			SetTextColor(hdc, RGB(64, 64, 64));
+			SetBkColor(hdc, RGB(192, 192, 192));
+
+			return (INT_PTR)g_hTextAreaBgBrush;
+		}
+
+		break;
+	}
+	case WM_CTLCOLORSTATIC:
+	{
+		HDC hdc = (HDC)wParam;
+		HWND hCtrl = (HWND)lParam;
+
+		if (hCtrl == hOutputDisplay) {
+			SetTextColor(hdc, RGB(64, 64, 64));
+			SetBkColor(hdc, RGB(192, 192, 192));
+			return (INT_PTR)g_hTextAreaBgBrush;
+		}
+		break;
+	}
 	case WM_PAINT:
 	{
 		PAINTSTRUCT ps;
@@ -476,6 +504,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	}
 	break;
 	case WM_DESTROY:
+		// Delete GDI object(s) on exit
+		DeleteObject(g_hTextAreaBgBrush);
+
 		PostQuitMessage(0);
 		break;
 	default:

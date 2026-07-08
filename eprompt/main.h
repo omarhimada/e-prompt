@@ -20,6 +20,8 @@ HWND hSortPromptButton;                         // Sort button
 HWND hCopyOutputButton;							// Copy button
 HWND hOutputDisplay;                            // Output
 WNDPROC g_DefaultEditProc;						// 'CTRL+A' selection
+HBRUSH g_hTextAreaBgBrush;						// I/O background brush
+HFONT hFont;									// Font
 
 // Forward declarations of functions included in this code module:
 ATOM                RegisterClass(HINSTANCE hInstance);
@@ -27,7 +29,7 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void                ResizeControls(HWND hWnd);
-void                SortPrompt();
+void                SortPrompts();
 
 struct Prompt {
 	std::wstring original;
