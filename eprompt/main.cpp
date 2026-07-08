@@ -235,7 +235,7 @@ void ResizeControls(HWND hWnd) {
 //
 //  FUNCTION: SortPrompts()
 //
-//  PURPOSE: Sort the prompts by weight, lexicographically, and remove duplicates.
+//  PURPOSE: Validate and sort the prompts by weight, lexicographically, and remove duplicates.
 //
 void SortPrompts() {
 	// Get length of input text
@@ -260,7 +260,30 @@ void SortPrompts() {
 			return s;
 		};
 
+		auto hasMalformedBrackets = [](const std::wstring& s) {
+			int parenCount = 0;
+			int squareCount = 0;
+
+			for (wchar_t c : s) {
+				if (c == L'(')
+					parenCount++;
+				else if (c == L')')
+					parenCount--;
+				else if (c == L'[')
+					squareCount++;
+				else if (c == L']')
+					squareCount--;
+
+				// Closing before opening
+				if (parenCount < 0 || squareCount < 0)
+					return true;
+			}
+
+			return parenCount != 0 || squareCount != 0;
+		};
+
 		std::vector<Prompt> prompts;
+		std::vector<std::wstring> malformedPrompts;
 
 		std::wstringstream ss(inputText);
 		std::wstring token;
@@ -269,6 +292,10 @@ void SortPrompts() {
 			token = trim(token);
 			if (token.empty())
 				continue;
+
+			if (hasMalformedBrackets(token)) {
+				malformedPrompts.push_back(token);
+			}
 
 			Prompt p{ token, token, 1.0 };
 
@@ -310,6 +337,24 @@ void SortPrompts() {
 			}
 
 			prompts.push_back(std::move(p));
+		}
+
+		if (!malformedPrompts.empty()) {
+			std::wstring message = L"Opening and/or closing brackets missing for the following prompts: ";
+
+			for (size_t i = 0; i < malformedPrompts.size(); ++i) {
+				if (i)
+					message += L", ";
+
+				message += malformedPrompts[i];
+			}
+
+			MessageBoxW(
+				nullptr,
+				message.c_str(),
+				L"Malformed Parentheses",
+				MB_OK | MB_ICONWARNING
+			);
 		}
 
 		// Deduplication
