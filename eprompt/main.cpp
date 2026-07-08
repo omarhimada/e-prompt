@@ -140,11 +140,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 
 	FlatButton_SetFont(hInputEdit, hFont);
 
-	// Create sort prompt button
+	// Create sort prompts button
 	hSortPromptButton = CreateFlatButton(
 		hWnd,
 		ID_SORT_PROMPT_BUTTON,
-		L"Sort Prompt",
+		L"Sort Prompts",
 		0,
 		0,
 		0,
@@ -190,6 +190,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 		hInputEdit,
 		GWLP_WNDPROC,
 		(LONG_PTR)InputEditProc);
+
+	// Loads an example set of negative prompts for sorting
+	LoadExampleNegativePrompt();
 
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
@@ -450,7 +453,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 			switch (dis->CtlID) {
 				case ID_SORT_PROMPT_BUTTON:
-					buttonText = L"Sort Prompt";
+					buttonText = L"Sort Prompts";
 				break;
 				case ID_COPY_OUTPUT_BUTTON:
 					buttonText = L"Copy Output";
