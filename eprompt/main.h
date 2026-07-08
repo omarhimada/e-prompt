@@ -8,6 +8,8 @@
 #define ID_COPY_OUTPUT_BUTTON 1003
 #define ID_OUTPUT_EDIT 1004
 #define BUTTON_HEIGHT 28
+#define IDR_FONT_CUSTOM 1004
+
 
 // Global Variables:
 HINSTANCE hInst;                                // Current instance
