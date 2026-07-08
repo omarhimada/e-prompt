@@ -70,6 +70,17 @@ ATOM RegisterClass(HINSTANCE hInstance) {
 	return RegisterClassExW(&wcex);
 }
 
+void RegisterMalformedWindow(HINSTANCE hInstance) {
+	WNDCLASSW wc = {};
+
+	wc.lpfnWndProc = MalformedWindowProc;
+	wc.hInstance = hInstance;
+	wc.lpszClassName = L"MalformedPromptWindow";
+	wc.hbrBackground = CreateSolidBrush(RGB(0, 0, 0));
+
+	RegisterClassW(&wc);
+}
+
 LRESULT CALLBACK InputEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	if (msg == WM_KEYDOWN) {
 		if (wParam == 'A' && (GetKeyState(VK_CONTROL) & 0x8000)) {
@@ -115,6 +126,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 	hInst = hInstance; // Store instance handle in our global variable
 	
 	RegisterFlatButton(hInstance);
+	RegisterMalformedWindow(hInstance);
 
 	HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, 0, 800, 600, nullptr, nullptr, hInstance, nullptr);
@@ -232,6 +244,111 @@ void ResizeControls(HWND hWnd) {
 	SetWindowPos(hOutputDisplay, nullptr, 0, halfHeight + BUTTON_HEIGHT, clientWidth, halfHeight, SWP_NOZORDER);
 }
 
+LRESULT CALLBACK MalformedWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	switch (message) {
+
+	case WM_COMMAND:
+		if (LOWORD(wParam) == ID_MALFORMED_CLOSE_BUTTON) {
+			DestroyWindow(hWnd);
+		}
+		break;
+
+	case WM_PAINT:
+	{
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+
+		RECT rc;
+		GetClientRect(hWnd, &rc);
+
+		HBRUSH brush = CreateSolidBrush(RGB(0, 0, 0));
+		FillRect(hdc, &rc, brush);
+		DeleteObject(brush);
+
+		// Set font for manually drawn text
+		HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
+
+		SetTextColor(hdc, RGB(234, 234, 234));
+		SetBkMode(hdc, TRANSPARENT);
+
+		RECT textRect = rc;
+		textRect.left += 20;
+		textRect.right -= 20;
+		textRect.top += 20;
+		textRect.bottom -= 70;
+
+		DrawTextW(
+			hdc,
+			malformedMessage.c_str(),
+			-1,
+			&textRect,
+			DT_LEFT | DT_WORDBREAK
+		);
+
+		// Restore previous font
+		SelectObject(hdc, oldFont);
+
+		EndPaint(hWnd, &ps);
+	}
+	break;
+
+	case WM_DESTROY:
+		hMalformedWindow = nullptr;
+		break;
+
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+
+	return 0;
+}
+
+void ShowMalformedPromptWindow(const std::vector<std::wstring>& prompts) {
+	malformedMessage =
+		L"Opening and/or closing brackets missing for the following prompts:\n\n";
+
+	for (size_t i = 0; i < prompts.size(); i++) {
+		if (i)
+			malformedMessage += L", ";
+
+		malformedMessage += prompts[i];
+	}
+
+	hMalformedWindow = CreateWindowExW(
+		0,
+		L"MalformedPromptWindow",
+		L"Malformed Parentheses",
+		WS_POPUP | WS_CAPTION,
+		CW_USEDEFAULT,
+		CW_USEDEFAULT,
+		600,
+		300,
+		nullptr,
+		nullptr,
+		hInst,
+		nullptr
+	);
+
+	hMalformedCloseButton = CreateFlatButton(
+		hMalformedWindow,
+		ID_MALFORMED_CLOSE_BUTTON,
+		L"Close",
+		0,
+		230,
+		600,
+		40
+	);
+
+	FlatButton_SetBackground(hMalformedCloseButton, RGB(8, 8, 8));
+	FlatButton_SetHoverBackground(hMalformedCloseButton, RGB(64, 64, 64));
+	FlatButton_SetPressedBackground(hMalformedCloseButton, RGB(81, 81, 81));
+	FlatButton_SetTextColor(hMalformedCloseButton, RGB(234, 234, 234));
+	FlatButton_SetFont(hMalformedCloseButton, hFont);
+
+	ShowWindow(hMalformedWindow, SW_SHOW);
+	UpdateWindow(hMalformedWindow);
+}
+
 //
 //  FUNCTION: SortPrompts()
 //
@@ -339,6 +456,7 @@ void SortPrompts() {
 			prompts.push_back(std::move(p));
 		}
 
+		// Malformed brackets
 		if (!malformedPrompts.empty()) {
 			std::wstring message = L"Opening and/or closing brackets missing for the following prompts: ";
 
@@ -349,12 +467,7 @@ void SortPrompts() {
 				message += malformedPrompts[i];
 			}
 
-			MessageBoxW(
-				nullptr,
-				message.c_str(),
-				L"Malformed Parentheses",
-				MB_OK | MB_ICONWARNING
-			);
+			ShowMalformedPromptWindow(malformedPrompts);
 		}
 
 		// Deduplication
@@ -547,7 +660,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	{
 		PAINTSTRUCT ps;
 		BeginPaint(hWnd, &ps);
-		// TODO: Add any drawing code here...
+		// TODO
 		EndPaint(hWnd, &ps);
 	}
 	break;
@@ -563,7 +676,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	return 0;
 }
 
-// Message handler for about box.
+// Message handler for the "About" dialog
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 	UNREFERENCED_PARAMETER(lParam);
 	switch (message) {

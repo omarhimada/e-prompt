@@ -10,6 +10,7 @@
 #define ID_COPY_OUTPUT_BUTTON 1003
 #define ID_OUTPUT_EDIT 1004
 #define ID_FONT_CUSTOM 1005
+#define ID_MALFORMED_CLOSE_BUTTON 1006
 
 // Global Variables:
 HINSTANCE hInst;                                // Current instance
@@ -27,9 +28,15 @@ HFONT hFont;									// Font
 ATOM                RegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK	MalformedWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void                ResizeControls(HWND hWnd);
 void                SortPrompts();
+
+// Malformed parentheses window
+HWND hMalformedWindow = nullptr;
+HWND hMalformedCloseButton = nullptr;
+std::wstring malformedMessage;
 
 struct Prompt {
 	std::wstring original;
