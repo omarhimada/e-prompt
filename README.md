@@ -1,4 +1,4 @@
 # e-prompt
-## A simple C++ Windows application that sorts Stable Diffusion prompts by weight & lexicographically, and removes duplicates.
+## A simple C++ Windows application that sorts Stable Diffusion prompts by weight & lexicographically, validates parentheses, and removes duplicates.
 
-<img width="795" height="603" alt="{FA333D09-4F7C-4FB6-B0A7-98BFD730621E}" src="https://github.com/user-attachments/assets/95d32d63-4b9e-45b8-b041-6f7095df4039" />
+<img width="1394" height="604" alt="image" src="https://github.com/user-attachments/assets/e5b52d19-025b-4a65-b93d-4efb77e69be3" />
