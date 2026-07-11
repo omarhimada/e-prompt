@@ -92,26 +92,6 @@ LRESULT CALLBACK InputEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 	return CallWindowProc(g_DefaultEditProc, hwnd, msg, wParam, lParam);
 }
 
-HFONT CreateFontFromFile(const wchar_t* filePath, int size) {
-	DWORD cFonts = 0;
-	if (AddFontResourceEx(filePath, FR_PRIVATE | FR_NOT_ENUM, &cFonts) == 0) {
-		return NULL;
-	}
-
-	LOGFONT lf;
-	ZeroMemory(&lf, sizeof(LOGFONT));
-	lf.lfHeight = -size * GetDeviceCaps(GetDC(NULL), LOGPIXELSY) / 72;
-	lf.lfWeight = FW_NORMAL;
-	lf.lfCharSet = DEFAULT_CHARSET;
-
-	wcscpy_s(lf.lfFaceName, LF_FACESIZE, L"JetBrains Mono");
-
-	HFONT hFont = CreateFontIndirect(&lf);
-
-	RemoveFontResourceEx(filePath, FR_PRIVATE | FR_NOT_ENUM, NULL);
-	return hFont;
-}
-
 //
 //   FUNCTION: InitInstance(HINSTANCE, int)
 //
@@ -135,7 +115,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 		return FALSE;
 	}
 
-	hFont = CreateFontFromFile(L"E:\\Fonts\\JBM.ttf", 12);
 	g_hTextAreaBgBrush = CreateSolidBrush(RGB(192, 192, 192));
 
 	// Create input text area (multiline edit control)
@@ -149,8 +128,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 		(HMENU)ID_INPUT_EDIT,
 		hInstance,
 		nullptr);
-
-	FlatButton_SetFont(hInputEdit, hFont);
 
 	// Create sort prompts button
 	hSortPromptButton = CreateFlatButton(
@@ -166,7 +143,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 	FlatButton_SetHoverBackground(hSortPromptButton, RGB(64, 64, 64));
 	FlatButton_SetPressedBackground(hSortPromptButton, RGB(81, 81, 81));
 	FlatButton_SetTextColor(hSortPromptButton,RGB(234, 234, 234));
-	FlatButton_SetFont(hSortPromptButton, hFont);
 
 	// Create copy output button
 	hCopyOutputButton = CreateFlatButton(
@@ -182,7 +158,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 	FlatButton_SetHoverBackground(hCopyOutputButton, RGB(64, 64, 64));
 	FlatButton_SetPressedBackground(hCopyOutputButton, RGB(81, 81, 81));
 	FlatButton_SetTextColor(hCopyOutputButton, RGB(234, 234, 234));
-	FlatButton_SetFont(hCopyOutputButton, hFont);
 
 	// Create output text area (multiline edit control, read-only)
 	hOutputDisplay = CreateWindowExW(
@@ -195,8 +170,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 		(HMENU)ID_OUTPUT_EDIT,
 		hInstance,
 		nullptr);
-
-	FlatButton_SetFont(hOutputDisplay, hFont);
 
 	g_DefaultEditProc = (WNDPROC)SetWindowLongPtr(
 		hInputEdit,
@@ -265,9 +238,6 @@ LRESULT CALLBACK MalformedWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPA
 		FillRect(hdc, &rc, brush);
 		DeleteObject(brush);
 
-		// Set font for manually drawn text
-		HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
-
 		SetTextColor(hdc, RGB(234, 234, 234));
 		SetBkMode(hdc, TRANSPARENT);
 
@@ -284,9 +254,6 @@ LRESULT CALLBACK MalformedWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPA
 			&textRect,
 			DT_LEFT | DT_WORDBREAK
 		);
-
-		// Restore previous font
-		SelectObject(hdc, oldFont);
 
 		EndPaint(hWnd, &ps);
 	}
@@ -343,7 +310,6 @@ void ShowMalformedPromptWindow(const std::vector<std::wstring>& prompts) {
 	FlatButton_SetHoverBackground(hMalformedCloseButton, RGB(64, 64, 64));
 	FlatButton_SetPressedBackground(hMalformedCloseButton, RGB(81, 81, 81));
 	FlatButton_SetTextColor(hMalformedCloseButton, RGB(234, 234, 234));
-	FlatButton_SetFont(hMalformedCloseButton, hFont);
 
 	ShowWindow(hMalformedWindow, SW_SHOW);
 	UpdateWindow(hMalformedWindow);

@@ -9,8 +9,7 @@
 #define ID_SORT_PROMPT_BUTTON 1002
 #define ID_COPY_OUTPUT_BUTTON 1003
 #define ID_OUTPUT_EDIT 1004
-#define ID_FONT_CUSTOM 1005
-#define ID_MALFORMED_CLOSE_BUTTON 1006
+#define ID_MALFORMED_CLOSE_BUTTON 1005
 
 // Global Variables:
 HINSTANCE hInst;                                // Current instance
@@ -22,7 +21,6 @@ HWND hCopyOutputButton;							// Copy button
 HWND hOutputDisplay;                            // Output
 WNDPROC g_DefaultEditProc;						// 'CTRL+A' selection
 HBRUSH g_hTextAreaBgBrush;						// I/O background brush
-HFONT hFont;									// Font
 
 // Forward declarations of functions included in this code module:
 ATOM                RegisterClass(HINSTANCE hInstance);
