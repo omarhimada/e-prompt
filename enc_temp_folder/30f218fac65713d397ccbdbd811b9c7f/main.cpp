@@ -276,7 +276,7 @@ void ShowWarningWindow(const std::wstring& message) {
 	hMalformedWindow = CreateWindowExW(
 		0,
 		L"MalformedPromptWindow",
-		L"Prompt Warning",
+		L"Malformed Parentheses",
 		WS_POPUP | WS_CAPTION,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
@@ -449,7 +449,7 @@ void SortPrompts() {
 
 		// Malformed brackets
 		if (!malformedPrompts.empty()) {
-			std::wstring message = L"Error: opening and/or closing brackets missing for the following prompt(s): ";
+			std::wstring message = L"Opening and/or closing brackets missing for the following prompt(s): ";
 
 			for (size_t i = 0; i < malformedPrompts.size(); ++i) {
 				if (i)
@@ -464,7 +464,7 @@ void SortPrompts() {
 		}
 
 		if (!longPrompts.empty()) {
-			std::wstring message = L"Warning: the following prompt(s) exceed 75 tokens: ";
+			std::wstring message = L"The following prompt(s) exceed 75 tokens: ";
 
 			for (size_t i = 0; i < longPrompts.size(); ++i) {
 				if (i)
