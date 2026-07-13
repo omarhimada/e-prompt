@@ -8,7 +8,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <wingdi.h>
+#include <richedit.h>
 
 #include "flatbutton.h"
 #include "main.h"
@@ -70,12 +70,12 @@ ATOM RegisterClass(HINSTANCE hInstance) {
 	return RegisterClassExW(&wcex);
 }
 
-void RegisterMalformedWindow(HINSTANCE hInstance) {
+void RegisterWarningWindow(HINSTANCE hInstance) {
 	WNDCLASSW wc = {};
 
 	wc.lpfnWndProc = MalformedWindowProc;
 	wc.hInstance = hInstance;
-	wc.lpszClassName = L"MalformedPromptWindow";
+	wc.lpszClassName = L"WarningWindow";
 	wc.hbrBackground = CreateSolidBrush(RGB(0, 0, 0));
 
 	RegisterClassW(&wc);
@@ -93,6 +93,32 @@ LRESULT CALLBACK InputEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 }
 
 //
+//  FUNCTION: SetRichEditFont(HWND hRichEdit, const wchar_t* faceName, int size, bool bold, bool italic) {
+//
+//  PURPOSE: Set font for all text in a RichEdit control
+//
+void SetRichEditFont(HWND hRichEdit, const wchar_t* faceName, int size, bool bold, bool italic) {
+	CHARFORMAT2 cf;
+	ZeroMemory(&cf, sizeof(CHARFORMAT2));
+
+	cf.cbSize = sizeof(CHARFORMAT2);
+	cf.dwMask = CFM_FACE | CFM_SIZE | CFM_BOLD | CFM_ITALIC;
+
+	// Set font face name (max 32 chars)
+	wcsncpy_s(cf.szFaceName, CF_MAXFACELEN + 1, faceName, CF_MAXFACELEN);
+
+	// Size is in half-points (e.g., 12pt = 240)
+	cf.yHeight = size * 20;
+
+	if (bold)   cf.dwEffects |= CFE_BOLD;
+	if (italic) cf.dwEffects |= CFE_ITALIC;
+
+	// SCF_ALL applies to all text, SCF_SELECTION only selected text
+	SendMessage(hRichEdit, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
+}
+
+
+//
 //   FUNCTION: InitInstance(HINSTANCE, int)
 //
 //   PURPOSE: Saves instance handle and creates main window
@@ -105,8 +131,10 @@ LRESULT CALLBACK InputEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 	hInst = hInstance; // Store instance handle in our global variable
 	
+	LoadLibraryW(L"Msftedit.dll");
+
 	RegisterFlatButton(hInstance);
-	RegisterMalformedWindow(hInstance);
+	RegisterWarningWindow(hInstance);
 
 	HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, 0, 800, 600, nullptr, nullptr, hInstance, nullptr);
@@ -120,9 +148,15 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 	// Create input text area (multiline edit control)
 	hInputEdit = CreateWindowExW(
 		0,
-		L"EDIT",
+		MSFTEDIT_CLASS,
 		L"",
-		WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN,
+		WS_CHILD |
+		WS_VISIBLE |
+		WS_VSCROLL |
+		ES_MULTILINE |
+		ES_AUTOVSCROLL |
+		ES_WANTRETURN |
+		ES_NOHIDESEL,
 		0, 0, 0, 0,
 		hWnd,
 		(HMENU)ID_INPUT_EDIT,
@@ -162,9 +196,15 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 	// Create output text area (multiline edit control, read-only)
 	hOutputDisplay = CreateWindowExW(
 		0,
-		L"EDIT",
+		MSFTEDIT_CLASS,
 		L"",
-		WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
+		WS_CHILD |
+		WS_VISIBLE |
+		WS_VSCROLL |
+		ES_MULTILINE |
+		ES_AUTOVSCROLL |
+		ES_READONLY |
+		ES_NOHIDESEL,
 		0, 0, 0, 0,
 		hWnd,
 		(HMENU)ID_OUTPUT_EDIT,
@@ -176,8 +216,32 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 		GWLP_WNDPROC,
 		(LONG_PTR)InputEditProc);
 
+	// TODO (event mask, notifications)
+	/*SendMessage(
+		hInputEdit,
+		EM_SETEVENTMASK,
+		0,
+		ENM_CHANGE | ENM_SELCHANGE);*/
+
+	/*ENM_SCROLL
+	ENM_KEYEVENTS
+	ENM_MOUSEEVENTS*/
+
+
 	// Loads an example set of negative prompts for sorting
 	LoadExampleNegativePrompt();
+
+	// Disable RichEdit's URL detection
+	SendMessage(
+		hInputEdit,
+		EM_AUTOURLDETECT,
+		FALSE,
+		0);
+
+
+	// Set the font for both RichEdit controls 
+	SetRichEditFont(hInputEdit, L"Consolas", 12, FALSE, FALSE);
+	SetRichEditFont(hOutputDisplay, L"Consolas", 12, FALSE, FALSE);
 
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
@@ -245,7 +309,7 @@ LRESULT CALLBACK MalformedWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPA
 		textRect.left += 20;
 		textRect.right -= 20;
 		textRect.top += 20;
-		textRect.bottom -= 70;
+		textRect.bottom -= 0;
 
 		DrawTextW(
 			hdc,
@@ -273,15 +337,24 @@ LRESULT CALLBACK MalformedWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPA
 void ShowWarningWindow(const std::wstring& message) {
 	malformedMessage = message;
 
+	int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+	int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+	int windowWidth = 580;
+	int windowHeight = 400;
+
+	int x = (screenWidth - windowWidth) / 2;
+	int y = (screenHeight - windowHeight) / 2;
+
 	hMalformedWindow = CreateWindowExW(
 		0,
-		L"MalformedPromptWindow",
+		L"WarningWindow",
 		L"Prompt Warning",
 		WS_POPUP | WS_CAPTION,
-		CW_USEDEFAULT,
-		CW_USEDEFAULT,
-		580,
-		400,
+		x,
+		y,
+		windowWidth,
+		windowHeight,
 		nullptr,
 		nullptr,
 		hInst,
@@ -293,8 +366,8 @@ void ShowWarningWindow(const std::wstring& message) {
 		ID_MALFORMED_CLOSE_BUTTON,
 		L"Close",
 		0,
-		230,
-		600,
+		320,
+		580,
 		40
 	);
 
@@ -634,7 +707,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 		break;
 	}
-	case WM_CTLCOLOREDIT:
+	/*case EM_SETBKGNDCOLOR:
 	{
 		HDC hdc = (HDC)wParam;
 		HWND hEdit = (HWND)lParam;
@@ -647,7 +720,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		}
 
 		break;
-	}
+	}*/
 	case WM_CTLCOLORSTATIC:
 	{
 		HDC hdc = (HDC)wParam;
@@ -679,3 +752,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	}
 	return 0;
 }
+
+// TODO (syntax highlighting example, with EM_EXGETSEL and EM_EXSETSEL)
+//CHARRANGE cr;
+//cr.cpMin = 10;
+//cr.cpMax = 11;
+//
+//SendMessage(
+//	hInputEdit,
+//	EM_EXSETSEL,
+//	0,
+//	(LPARAM)&cr);
+//
+//CHARFORMAT2 cf = {};
+//cf.cbSize = sizeof(cf);
+//cf.dwMask = CFM_COLOR;
+//cf.crTextColor = RGB(0, 255, 0);
+//
+//SendMessage(
+//	hInputEdit,
+//	EM_SETCHARFORMAT,
+//	SCF_SELECTION,
+//	(LPARAM)&cf);
