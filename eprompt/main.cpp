@@ -436,44 +436,103 @@ void SortPrompts() {
 			return tokens;
 		};
 
-		auto convertBracketWeight = [&trim](const std::wstring& token) -> std::wstring {
-			size_t parenOpen = 0, parenClose = 0;
+		auto convertBracketWeight = [](const std::wstring& input) -> std::wstring {
+			std::wstring output;
+			size_t i = 0;
 
-			while (parenOpen < token.size() && token[parenOpen] == L'(')
-				parenOpen++;
+			while (i < input.size()) {
 
-			while (parenClose < token.size() && token[token.size() - 1 - parenClose] == L')')
-				parenClose++;
+				// Parentheses weighting
+				if (input[i] == L'(') {
+					size_t start = i;
+					int depth = 0;
 
-			size_t squareOpen = 0, squareClose = 0;
+					while (i < input.size() && input[i] == L'(') {
+						depth++;
+						i++;
+					}
 
-			while (squareOpen < token.size() && token[squareOpen] == L'[')
-				squareOpen++;
+					size_t textStart = i;
 
-			while (squareClose < token.size() && token[token.size() - 1 - squareClose] == L']')
-				squareClose++;
+					// Find matching closing brackets
+					while (i < input.size() && input[i] != L')')
+						i++;
 
-			std::wstring text;
-			double weight = 1.0;
+					if (i < input.size()) {
+						std::wstring text = input.substr(textStart, i - textStart);
 
-			if (parenOpen > 0 && parenOpen == parenClose) {
-				text = trim(token.substr(parenOpen, token.size() - parenOpen - parenClose));
-				weight = std::pow(1.1, static_cast<double>(parenOpen));
+						int closeCount = 0;
+						while (i < input.size() && input[i] == L')') {
+							closeCount++;
+							i++;
+						}
+
+						if (depth == closeCount) {
+							double weight = std::pow(1.1, depth);
+
+							std::wstringstream ss;
+							ss << L"(" << text << L":"
+								<< std::fixed << std::setprecision(5)
+								<< weight << L")";
+
+							output += ss.str();
+							continue;
+						}
+					}
+
+					// malformed, keep original
+					output += input[start];
+					i = start + 1;
+				}
+
+				// Square bracket weighting
+				else if (input[i] == L'[') {
+					size_t start = i;
+					int depth = 0;
+
+					while (i < input.size() && input[i] == L'[') {
+						depth++;
+						i++;
+					}
+
+					size_t textStart = i;
+
+					while (i < input.size() && input[i] != L']')
+						i++;
+
+					if (i < input.size()) {
+						std::wstring text = input.substr(textStart, i - textStart);
+
+						int closeCount = 0;
+						while (i < input.size() && input[i] == L']') {
+							closeCount++;
+							i++;
+						}
+
+						if (depth == closeCount) {
+							double weight = std::pow(1.0 / 1.1, depth);
+
+							std::wstringstream ss;
+							ss << L"(" << text << L":"
+								<< std::fixed << std::setprecision(5)
+								<< weight << L")";
+
+							output += ss.str();
+							continue;
+						}
+					}
+
+					output += input[start];
+					i = start + 1;
+				}
+
+				else {
+					output += input[i];
+					i++;
+				}
 			}
-			else if (squareOpen > 0 && squareOpen == squareClose) {
-				text = trim(token.substr(squareOpen, token.size() - squareOpen - squareClose));
-				weight = std::pow(1.0 / 1.1, static_cast<double>(squareOpen));
-			}
-			else {
-				return token;
-			}
 
-			std::wstringstream ss;
-			ss << L"(" << text << L":";
-			ss << std::fixed << std::setprecision(3) << weight;
-			ss << L")";
-
-			return ss.str();
+			return output;
 		};
 
 		auto hasMalformedBrackets = [](const std::wstring& s) {
