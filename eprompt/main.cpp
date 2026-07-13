@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <iomanip>
 #include <richedit.h>
 
 #include "flatbutton.h"
@@ -116,7 +117,6 @@ void SetRichEditFont(HWND hRichEdit, const wchar_t* faceName, int size, bool bol
 	// SCF_ALL applies to all text, SCF_SELECTION only selected text
 	SendMessage(hRichEdit, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
 }
-
 
 //
 //   FUNCTION: InitInstance(HINSTANCE, int)
@@ -436,6 +436,46 @@ void SortPrompts() {
 			return tokens;
 		};
 
+		auto convertBracketWeight = [&trim](const std::wstring& token) -> std::wstring {
+			size_t parenOpen = 0, parenClose = 0;
+
+			while (parenOpen < token.size() && token[parenOpen] == L'(')
+				parenOpen++;
+
+			while (parenClose < token.size() && token[token.size() - 1 - parenClose] == L')')
+				parenClose++;
+
+			size_t squareOpen = 0, squareClose = 0;
+
+			while (squareOpen < token.size() && token[squareOpen] == L'[')
+				squareOpen++;
+
+			while (squareClose < token.size() && token[token.size() - 1 - squareClose] == L']')
+				squareClose++;
+
+			std::wstring text;
+			double weight = 1.0;
+
+			if (parenOpen > 0 && parenOpen == parenClose) {
+				text = trim(token.substr(parenOpen, token.size() - parenOpen - parenClose));
+				weight = std::pow(1.1, static_cast<double>(parenOpen));
+			}
+			else if (squareOpen > 0 && squareOpen == squareClose) {
+				text = trim(token.substr(squareOpen, token.size() - squareOpen - squareClose));
+				weight = std::pow(1.0 / 1.1, static_cast<double>(squareOpen));
+			}
+			else {
+				return token;
+			}
+
+			std::wstringstream ss;
+			ss << L"(" << text << L":";
+			ss << std::fixed << std::setprecision(3) << weight;
+			ss << L")";
+
+			return ss.str();
+		};
+
 		auto hasMalformedBrackets = [](const std::wstring& s) {
 			int parenCount = 0;
 			int squareCount = 0;
@@ -480,6 +520,22 @@ void SortPrompts() {
 
 			Prompt p{ token, token, 1.0 };
 
+			// (((text))) / [[[text]]] into (text:weight)
+			std::wstring converted = convertBracketWeight(token);
+
+			if (converted != token) {
+				p.original = converted;
+				token = converted;
+
+				size_t colon = converted.rfind(L':');
+
+				p.text = trim(converted.substr(1, colon - 1));
+
+				p.weight = std::stod(
+					converted.substr(colon + 1, converted.size() - colon - 2)
+				);
+			}
+
 			// (text:1.2)
 			if (token.size() >= 5 && token.front() == L'(' && token.back() == L')') {
 				// Minimum size of 5 characters for (x:y)
@@ -493,28 +549,6 @@ void SortPrompts() {
 					}
 					catch (...) {}
 				}
-			}
-
-			// (((text))) or [[[text]]]
-			size_t parenOpen = 0, parenClose = 0;
-			while (parenOpen < token.size() && token[parenOpen] == L'(') ++parenOpen;
-			while (parenClose < token.size() && token[token.size() - 1 - parenClose] == L')') ++parenClose;
-
-			size_t squareOpen = 0, squareClose = 0;
-			while (squareOpen < token.size() && token[squareOpen] == L'[') ++squareOpen;
-			while (squareClose < token.size() && token[token.size() - 1 - squareClose] == L']') ++squareClose;
-
-			if (parenOpen > 0 && parenOpen == parenClose) {
-				p.text = trim(token.substr(parenOpen, token.size() - parenOpen - parenClose));
-
-				// 1.1^n
-				p.weight = std::pow(1.1, static_cast<double>(parenOpen));
-			}
-			else if (squareOpen > 0 && squareOpen == squareClose) {
-				p.text = trim(token.substr(squareOpen, token.size() - squareOpen - squareClose));
-
-				// 0.9^n
-				p.weight = std::pow(0.9, static_cast<double>(squareOpen));
 			}
 
 			prompts.push_back(std::move(p));
